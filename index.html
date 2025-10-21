@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notes2do - Note Taking with Auto To-Do</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 20px;
+            height: calc(100vh - 40px);
+        }
+
+        .section {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+        }
+
+        h1 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 28px;
+        }
+
+        h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 22px;
+        }
+
+        .notes-section {
+            overflow: hidden;
+        }
+
+        .new-note {
+            margin-bottom: 20px;
+        }
+
+        .new-note input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            margin-bottom: 10px;
+            transition: border-color 0.3s;
+        }
+
+        .new-note input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .new-note textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            min-height: 100px;
+            resize: vertical;
+            font-family: inherit;
+            margin-bottom: 10px;
+            transition: border-color 0.3s;
+        }
+
+        .new-note textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+
+        .btn:hover {
+            background: #5568d3;
+        }
+
+        .btn-delete {
+            background: #ef4444;
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .btn-delete:hover {
+            background: #dc2626;
+        }
+
+        .btn-edit {
+            background: #f59e0b;
+            padding: 6px 12px;
+            font-size: 12px;
+            margin-right: 8px;
+        }
+
+        .btn-edit:hover {
+            background: #d97706;
+        }
+
+        .notes-list {
+            flex: 1;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+
+        .note-card {
+            background: #f9fafb;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .note-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .note-card h3 {
+            color: #1f2937;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+
+        .note-card p {
+            color: #4b5563;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            margin-bottom: 12px;
+        }
+
+        .note-card .actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .todo-list {
+            flex: 1;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+
+        .todo-item {
+            background: #f0f9ff;
+            border-left: 4px solid #667eea;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .todo-item.completed {
+            background: #f0fdf4;
+            border-left-color: #22c55e;
+            opacity: 0.7;
+        }
+
+        .todo-checkbox {
+            margin-top: 2px;
+            cursor: pointer;
+            width: 18px;
+            height: 18px;
+        }
+
+        .todo-text {
+            flex: 1;
+            color: #1f2937;
+            line-height: 1.5;
+        }
+
+        .todo-text.completed {
+            text-decoration: line-through;
+            color: #6b7280;
+        }
+
+        .todo-source {
+            font-size: 11px;
+            color: #9ca3af;
+            margin-top: 4px;
+        }
+
+        .empty-state {
+            text-align: center;
+            color: #9ca3af;
+            padding: 40px 20px;
+            font-style: italic;
+        }
+
+        @media (max-width: 1024px) {
+            .container {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+        }
+
+        .edit-mode {
+            border-color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="section notes-section">
+            <h1>Notes</h1>
+
+            <div class="new-note">
+                <input type="text" id="noteTitle" placeholder="Note title...">
+                <textarea id="noteContent" placeholder="Write your note here...
+
+Tips for auto to-do detection:
+- Use markdown checkboxes: - [ ] Task name
+- Start lines with TODO: or TO DO:
+- Use bullet points: - Task description"></textarea>
+                <button class="btn" onclick="app.addNote()">Add Note</button>
+            </div>
+
+            <div class="notes-list" id="notesList"></div>
+        </div>
+
+        <div class="section">
+            <h2>To-Do List</h2>
+            <div class="todo-list" id="todoList"></div>
+        </div>
+    </div>
+
+    <script>
+        const app = {
+            notes: [],
+
+            init() {
+                this.loadNotes();
+                this.render();
+            },
+
+            loadNotes() {
+                const saved = localStorage.getItem('notes2do_notes');
+                if (saved) {
+                    this.notes = JSON.parse(saved);
+                }
+            },
+
+            saveNotes() {
+                localStorage.setItem('notes2do_notes', JSON.stringify(this.notes));
+            },
+
+            addNote() {
+                const title = document.getElementById('noteTitle').value.trim();
+                const content = document.getElementById('noteContent').value.trim();
+
+                if (!title && !content) {
+                    alert('Please enter a title or content for your note');
+                    return;
+                }
+
+                const note = {
+                    id: Date.now(),
+                    title: title || 'Untitled Note',
+                    content: content,
+                    createdAt: new Date().toISOString()
+                };
+
+                this.notes.unshift(note);
+                this.saveNotes();
+
+                document.getElementById('noteTitle').value = '';
+                document.getElementById('noteContent').value = '';
+
+                this.render();
+            },
+
+            deleteNote(id) {
+                if (confirm('Are you sure you want to delete this note?')) {
+                    this.notes = this.notes.filter(note => note.id !== id);
+                    this.saveNotes();
+                    this.render();
+                }
+            },
+
+            editNote(id) {
+                const note = this.notes.find(n => n.id === id);
+                if (!note) return;
+
+                const noteCard = document.querySelector(`[data-note-id="${id}"]`);
+                const currentTitle = noteCard.querySelector('h3').textContent;
+                const currentContent = note.content;
+
+                const titleInput = document.createElement('input');
+                titleInput.type = 'text';
+                titleInput.value = currentTitle;
+                titleInput.style.cssText = 'width: 100%; padding: 8px; margin-bottom: 8px; border: 2px solid #667eea; border-radius: 4px; font-size: 16px; font-weight: bold;';
+
+                const contentTextarea = document.createElement('textarea');
+                contentTextarea.value = currentContent;
+                contentTextarea.style.cssText = 'width: 100%; padding: 8px; margin-bottom: 8px; border: 2px solid #667eea; border-radius: 4px; min-height: 100px; font-family: inherit; font-size: 14px;';
+
+                const saveBtn = document.createElement('button');
+                saveBtn.textContent = 'Save';
+                saveBtn.className = 'btn';
+                saveBtn.style.marginRight = '8px';
+
+                const cancelBtn = document.createElement('button');
+                cancelBtn.textContent = 'Cancel';
+                cancelBtn.className = 'btn btn-delete';
+
+                saveBtn.onclick = () => {
+                    note.title = titleInput.value.trim() || 'Untitled Note';
+                    note.content = contentTextarea.value.trim();
+                    this.saveNotes();
+                    this.render();
+                };
+
+                cancelBtn.onclick = () => {
+                    this.render();
+                };
+
+                noteCard.innerHTML = '';
+                noteCard.appendChild(titleInput);
+                noteCard.appendChild(contentTextarea);
+                noteCard.appendChild(saveBtn);
+                noteCard.appendChild(cancelBtn);
+                noteCard.classList.add('edit-mode');
+
+                titleInput.focus();
+            },
+
+            extractTodos() {
+                const todos = [];
+
+                this.notes.forEach(note => {
+                    const lines = note.content.split('\n');
+
+                    lines.forEach((line, index) => {
+                        const trimmed = line.trim();
+
+                        // Match markdown checkboxes: - [ ] or - [x]
+                        const checkboxMatch = trimmed.match(/^-\s*\[([ x])\]\s*(.+)/i);
+                        if (checkboxMatch) {
+                            todos.push({
+                                text: checkboxMatch[2].trim(),
+                                completed: checkboxMatch[1].toLowerCase() === 'x',
+                                source: note.title,
+                                noteId: note.id
+                            });
+                            return;
+                        }
+
+                        // Match TODO: or TO DO:
+                        const todoMatch = trimmed.match(/^(TODO|TO DO):\s*(.+)/i);
+                        if (todoMatch) {
+                            todos.push({
+                                text: todoMatch[2].trim(),
+                                completed: false,
+                                source: note.title,
+                                noteId: note.id
+                            });
+                            return;
+                        }
+
+                        // Match bullet points (but not already matched checkboxes)
+                        const bulletMatch = trimmed.match(/^[-*]\s+(.+)/);
+                        if (bulletMatch && !trimmed.match(/^-\s*\[/)) {
+                            todos.push({
+                                text: bulletMatch[1].trim(),
+                                completed: false,
+                                source: note.title,
+                                noteId: note.id
+                            });
+                            return;
+                        }
+                    });
+                });
+
+                return todos;
+            },
+
+            toggleTodo(noteId, todoText, currentState) {
+                const note = this.notes.find(n => n.id === noteId);
+                if (!note) return;
+
+                // Find and toggle the checkbox in the note content
+                const lines = note.content.split('\n');
+                const updatedLines = lines.map(line => {
+                    const trimmed = line.trim();
+                    const checkboxMatch = trimmed.match(/^(-\s*\[)([ x])(\]\s*)(.+)/i);
+
+                    if (checkboxMatch && checkboxMatch[4].trim() === todoText) {
+                        const newState = currentState ? ' ' : 'x';
+                        return line.replace(/\[[ x]\]/i, `[${newState}]`);
+                    }
+                    return line;
+                });
+
+                note.content = updatedLines.join('\n');
+                this.saveNotes();
+                this.render();
+            },
+
+            render() {
+                this.renderNotes();
+                this.renderTodos();
+            },
+
+            renderNotes() {
+                const notesList = document.getElementById('notesList');
+
+                if (this.notes.length === 0) {
+                    notesList.innerHTML = '<div class="empty-state">No notes yet. Create your first note above!</div>';
+                    return;
+                }
+
+                notesList.innerHTML = this.notes.map(note => `
+                    <div class="note-card" data-note-id="${note.id}">
+                        <h3>${this.escapeHtml(note.title)}</h3>
+                        <p>${this.escapeHtml(note.content)}</p>
+                        <div class="actions">
+                            <button class="btn btn-edit" onclick="app.editNote(${note.id})">Edit</button>
+                            <button class="btn btn-delete" onclick="app.deleteNote(${note.id})">Delete</button>
+                        </div>
+                    </div>
+                `).join('');
+            },
+
+            renderTodos() {
+                const todoList = document.getElementById('todoList');
+                const todos = this.extractTodos();
+
+                if (todos.length === 0) {
+                    todoList.innerHTML = '<div class="empty-state">No to-dos found. Add tasks to your notes using:<br>- [ ] Task name<br>TODO: Task name<br>- Task name</div>';
+                    return;
+                }
+
+                todoList.innerHTML = todos.map((todo, index) => `
+                    <div class="todo-item ${todo.completed ? 'completed' : ''}">
+                        <input
+                            type="checkbox"
+                            class="todo-checkbox"
+                            ${todo.completed ? 'checked' : ''}
+                            onchange="app.toggleTodo(${todo.noteId}, '${this.escapeHtml(todo.text).replace(/'/g, "\\'")}', ${todo.completed})"
+                        >
+                        <div>
+                            <div class="todo-text ${todo.completed ? 'completed' : ''}">${this.escapeHtml(todo.text)}</div>
+                            <div class="todo-source">From: ${this.escapeHtml(todo.source)}</div>
+                        </div>
+                    </div>
+                `).join('');
+            },
+
+            escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+        };
+
+        // Initialize app when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            app.init();
+        });
+    </script>
+</body>
+</html>
