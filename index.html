@@ -27,6 +27,72 @@
             height: calc(100vh - 40px);
         }
 
+        .auth-container {
+            max-width: 450px;
+            margin: 100px auto;
+            background: white;
+            border-radius: 12px;
+            padding: 40px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .auth-container h1 {
+            text-align: center;
+            color: #667eea;
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #4b5563;
+            font-weight: 500;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .error-message {
+            background: #fee;
+            color: #c00;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        .auth-toggle {
+            text-align: center;
+            margin-top: 20px;
+            color: #6b7280;
+        }
+
+        .auth-toggle a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .auth-toggle a:hover {
+            text-decoration: underline;
+        }
+
         .section {
             background: white;
             border-radius: 12px;
@@ -36,9 +102,15 @@
             flex-direction: column;
         }
 
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
         h1 {
             color: #667eea;
-            margin-bottom: 20px;
             font-size: 28px;
         }
 
@@ -46,6 +118,17 @@
             color: #667eea;
             margin-bottom: 15px;
             font-size: 22px;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .username {
+            color: #4b5563;
+            font-weight: 600;
         }
 
         .notes-section {
@@ -103,6 +186,21 @@
 
         .btn:hover {
             background: #5568d3;
+        }
+
+        .btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        .btn-logout {
+            background: #6b7280;
+            padding: 8px 16px;
+            font-size: 13px;
+        }
+
+        .btn-logout:hover {
+            background: #4b5563;
         }
 
         .btn-delete {
@@ -218,6 +316,10 @@
             font-style: italic;
         }
 
+        .hidden {
+            display: none !important;
+        }
+
         @media (max-width: 1024px) {
             .container {
                 grid-template-columns: 1fr;
@@ -228,12 +330,75 @@
         .edit-mode {
             border-color: #667eea;
         }
+
+        .loading {
+            text-align: center;
+            color: #667eea;
+            padding: 20px;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
+    <!-- Authentication Screen -->
+    <div id="authScreen" class="auth-container">
+        <h1>Notes2do</h1>
+
+        <div id="loginForm">
+            <div id="authError" class="error-message hidden"></div>
+
+            <div class="form-group">
+                <label for="loginUsername">Username</label>
+                <input type="text" id="loginUsername" required>
+            </div>
+
+            <div class="form-group">
+                <label for="loginPassword">Password</label>
+                <input type="password" id="loginPassword" required>
+            </div>
+
+            <button class="btn" style="width: 100%;" onclick="auth.login()">Login</button>
+
+            <div class="auth-toggle">
+                Don't have an account? <a onclick="auth.showRegister()">Register</a>
+            </div>
+        </div>
+
+        <div id="registerForm" class="hidden">
+            <div id="registerError" class="error-message hidden"></div>
+
+            <div class="form-group">
+                <label for="registerUsername">Username</label>
+                <input type="text" id="registerUsername" required>
+            </div>
+
+            <div class="form-group">
+                <label for="registerEmail">Email</label>
+                <input type="email" id="registerEmail" required>
+            </div>
+
+            <div class="form-group">
+                <label for="registerPassword">Password</label>
+                <input type="password" id="registerPassword" required>
+            </div>
+
+            <button class="btn" style="width: 100%;" onclick="auth.register()">Register</button>
+
+            <div class="auth-toggle">
+                Already have an account? <a onclick="auth.showLogin()">Login</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App Screen -->
+    <div id="appScreen" class="container hidden">
         <div class="section notes-section">
-            <h1>Notes</h1>
+            <div class="header">
+                <h1>Notes</h1>
+                <div class="user-info">
+                    <span class="username" id="currentUser"></span>
+                    <button class="btn btn-logout" onclick="auth.logout()">Logout</button>
+                </div>
+            </div>
 
             <div class="new-note">
                 <input type="text" id="noteTitle" placeholder="Note title...">
@@ -246,7 +411,9 @@ Tips for auto to-do detection:
                 <button class="btn" onclick="app.addNote()">Add Note</button>
             </div>
 
-            <div class="notes-list" id="notesList"></div>
+            <div class="notes-list" id="notesList">
+                <div class="loading">Loading notes...</div>
+            </div>
         </div>
 
         <div class="section">
@@ -256,26 +423,172 @@ Tips for auto to-do detection:
     </div>
 
     <script>
-        const app = {
-            notes: [],
+        const API_URL = 'http://localhost:3000/api';
 
-            init() {
-                this.loadNotes();
-                this.render();
-            },
+        // Authentication module
+        const auth = {
+            async login() {
+                const username = document.getElementById('loginUsername').value.trim();
+                const password = document.getElementById('loginPassword').value;
+                const errorEl = document.getElementById('authError');
 
-            loadNotes() {
-                const saved = localStorage.getItem('notes2do_notes');
-                if (saved) {
-                    this.notes = JSON.parse(saved);
+                errorEl.classList.add('hidden');
+
+                if (!username || !password) {
+                    errorEl.textContent = 'Please enter username and password';
+                    errorEl.classList.remove('hidden');
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`${API_URL}/auth/login`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username, password })
+                    });
+
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(data.error || 'Login failed');
+                    }
+
+                    localStorage.setItem('token', data.token);
+                    localStorage.setItem('user', JSON.stringify(data.user));
+
+                    this.showApp(data.user);
+                } catch (error) {
+                    errorEl.textContent = error.message;
+                    errorEl.classList.remove('hidden');
                 }
             },
 
-            saveNotes() {
-                localStorage.setItem('notes2do_notes', JSON.stringify(this.notes));
+            async register() {
+                const username = document.getElementById('registerUsername').value.trim();
+                const email = document.getElementById('registerEmail').value.trim();
+                const password = document.getElementById('registerPassword').value;
+                const errorEl = document.getElementById('registerError');
+
+                errorEl.classList.add('hidden');
+
+                if (!username || !email || !password) {
+                    errorEl.textContent = 'All fields are required';
+                    errorEl.classList.remove('hidden');
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`${API_URL}/auth/register`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username, email, password })
+                    });
+
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(data.error || 'Registration failed');
+                    }
+
+                    localStorage.setItem('token', data.token);
+                    localStorage.setItem('user', JSON.stringify(data.user));
+
+                    this.showApp(data.user);
+                } catch (error) {
+                    errorEl.textContent = error.message;
+                    errorEl.classList.remove('hidden');
+                }
             },
 
-            addNote() {
+            async checkAuth() {
+                const token = localStorage.getItem('token');
+                const user = localStorage.getItem('user');
+
+                if (!token || !user) {
+                    this.showAuth();
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`${API_URL}/auth/verify`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Token expired');
+                    }
+
+                    this.showApp(JSON.parse(user));
+                } catch (error) {
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('user');
+                    this.showAuth();
+                }
+            },
+
+            showApp(user) {
+                document.getElementById('authScreen').classList.add('hidden');
+                document.getElementById('appScreen').classList.remove('hidden');
+                document.getElementById('currentUser').textContent = user.username;
+                app.init();
+            },
+
+            showAuth() {
+                document.getElementById('authScreen').classList.remove('hidden');
+                document.getElementById('appScreen').classList.add('hidden');
+            },
+
+            showLogin() {
+                document.getElementById('loginForm').classList.remove('hidden');
+                document.getElementById('registerForm').classList.add('hidden');
+                document.getElementById('authError').classList.add('hidden');
+            },
+
+            showRegister() {
+                document.getElementById('loginForm').classList.add('hidden');
+                document.getElementById('registerForm').classList.remove('hidden');
+                document.getElementById('registerError').classList.add('hidden');
+            },
+
+            logout() {
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                this.showAuth();
+                this.showLogin();
+            },
+
+            getToken() {
+                return localStorage.getItem('token');
+            }
+        };
+
+        // Main app module
+        const app = {
+            notes: [],
+
+            async init() {
+                await this.loadNotes();
+                this.render();
+            },
+
+            async loadNotes() {
+                try {
+                    const response = await fetch(`${API_URL}/notes`, {
+                        headers: { 'Authorization': `Bearer ${auth.getToken()}` }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Failed to load notes');
+                    }
+
+                    this.notes = await response.json();
+                } catch (error) {
+                    console.error('Load notes error:', error);
+                    alert('Failed to load notes');
+                }
+            },
+
+            async addNote() {
                 const title = document.getElementById('noteTitle').value.trim();
                 const content = document.getElementById('noteContent').value.trim();
 
@@ -284,36 +597,65 @@ Tips for auto to-do detection:
                     return;
                 }
 
-                const note = {
-                    id: Date.now(),
-                    title: title || 'Untitled Note',
-                    content: content,
-                    createdAt: new Date().toISOString()
-                };
+                try {
+                    const response = await fetch(`${API_URL}/notes`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${auth.getToken()}`
+                        },
+                        body: JSON.stringify({
+                            title: title || 'Untitled Note',
+                            content: content
+                        })
+                    });
 
-                this.notes.unshift(note);
-                this.saveNotes();
+                    if (!response.ok) {
+                        throw new Error('Failed to create note');
+                    }
 
-                document.getElementById('noteTitle').value = '';
-                document.getElementById('noteContent').value = '';
+                    const note = await response.json();
+                    this.notes.unshift(note);
 
-                this.render();
-            },
+                    document.getElementById('noteTitle').value = '';
+                    document.getElementById('noteContent').value = '';
 
-            deleteNote(id) {
-                if (confirm('Are you sure you want to delete this note?')) {
-                    this.notes = this.notes.filter(note => note.id !== id);
-                    this.saveNotes();
                     this.render();
+                } catch (error) {
+                    console.error('Add note error:', error);
+                    alert('Failed to create note');
                 }
             },
 
-            editNote(id) {
+            async deleteNote(id) {
+                if (!confirm('Are you sure you want to delete this note?')) {
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`${API_URL}/notes/${id}`, {
+                        method: 'DELETE',
+                        headers: { 'Authorization': `Bearer ${auth.getToken()}` }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Failed to delete note');
+                    }
+
+                    this.notes = this.notes.filter(note => note.id !== id);
+                    this.render();
+                } catch (error) {
+                    console.error('Delete note error:', error);
+                    alert('Failed to delete note');
+                }
+            },
+
+            async editNote(id) {
                 const note = this.notes.find(n => n.id === id);
                 if (!note) return;
 
                 const noteCard = document.querySelector(`[data-note-id="${id}"]`);
-                const currentTitle = noteCard.querySelector('h3').textContent;
+                const currentTitle = note.title;
                 const currentContent = note.content;
 
                 const titleInput = document.createElement('input');
@@ -334,11 +676,33 @@ Tips for auto to-do detection:
                 cancelBtn.textContent = 'Cancel';
                 cancelBtn.className = 'btn btn-delete';
 
-                saveBtn.onclick = () => {
-                    note.title = titleInput.value.trim() || 'Untitled Note';
-                    note.content = contentTextarea.value.trim();
-                    this.saveNotes();
-                    this.render();
+                saveBtn.onclick = async () => {
+                    try {
+                        const response = await fetch(`${API_URL}/notes/${id}`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${auth.getToken()}`
+                            },
+                            body: JSON.stringify({
+                                title: titleInput.value.trim() || 'Untitled Note',
+                                content: contentTextarea.value.trim()
+                            })
+                        });
+
+                        if (!response.ok) {
+                            throw new Error('Failed to update note');
+                        }
+
+                        const updatedNote = await response.json();
+                        const index = this.notes.findIndex(n => n.id === id);
+                        this.notes[index] = updatedNote;
+
+                        this.render();
+                    } catch (error) {
+                        console.error('Update note error:', error);
+                        alert('Failed to update note');
+                    }
                 };
 
                 cancelBtn.onclick = () => {
@@ -361,7 +725,7 @@ Tips for auto to-do detection:
                 this.notes.forEach(note => {
                     const lines = note.content.split('\n');
 
-                    lines.forEach((line, index) => {
+                    lines.forEach((line) => {
                         const trimmed = line.trim();
 
                         // Match markdown checkboxes: - [ ] or - [x]
@@ -405,7 +769,7 @@ Tips for auto to-do detection:
                 return todos;
             },
 
-            toggleTodo(noteId, todoText, currentState) {
+            async toggleTodo(noteId, todoText, currentState) {
                 const note = this.notes.find(n => n.id === noteId);
                 if (!note) return;
 
@@ -422,9 +786,34 @@ Tips for auto to-do detection:
                     return line;
                 });
 
-                note.content = updatedLines.join('\n');
-                this.saveNotes();
-                this.render();
+                const newContent = updatedLines.join('\n');
+
+                try {
+                    const response = await fetch(`${API_URL}/notes/${noteId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${auth.getToken()}`
+                        },
+                        body: JSON.stringify({
+                            title: note.title,
+                            content: newContent
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Failed to update note');
+                    }
+
+                    const updatedNote = await response.json();
+                    const index = this.notes.findIndex(n => n.id === noteId);
+                    this.notes[index] = updatedNote;
+
+                    this.render();
+                } catch (error) {
+                    console.error('Toggle todo error:', error);
+                    alert('Failed to update todo');
+                }
             },
 
             render() {
@@ -461,7 +850,7 @@ Tips for auto to-do detection:
                     return;
                 }
 
-                todoList.innerHTML = todos.map((todo, index) => `
+                todoList.innerHTML = todos.map((todo) => `
                     <div class="todo-item ${todo.completed ? 'completed' : ''}">
                         <input
                             type="checkbox"
@@ -486,7 +875,7 @@ Tips for auto to-do detection:
 
         // Initialize app when page loads
         document.addEventListener('DOMContentLoaded', () => {
-            app.init();
+            auth.checkAuth();
         });
     </script>
 </body>
